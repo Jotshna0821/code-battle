@@ -12,6 +12,10 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      sans: ['Space Grotesk', 'system-ui', 'sans-serif'],
+      mono: ['JetBrains Mono', 'monospace'],
+    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -47,6 +51,17 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        streak: "hsl(var(--streak))",
+        xp: "hsl(var(--xp))",
+        "rank-bronze": "hsl(var(--rank-bronze))",
+        "rank-silver": "hsl(var(--rank-silver))",
+        "rank-gold": "hsl(var(--rank-gold))",
+        "rank-platinum": "hsl(var(--rank-platinum))",
+        "rank-legendary": "hsl(var(--rank-legendary))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
