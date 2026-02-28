@@ -73,16 +73,6 @@ export const api = {
     getWeekly: () => apiCall('/api/leaderboard/weekly'),
     getAllTime: () => apiCall('/api/leaderboard/alltime'),
   },
-
-  // Analytics endpoints
-  analytics: {
-    getTopics: () => apiCall('/api/analytics/topics'),
-    getWeaknesses: () => apiCall('/api/analytics/weaknesses'),
-    getDifficultyProgress: (days: number = 30) =>
-      apiCall(`/api/analytics/difficulty-progress?days=${days}`),
-    getRewards: () => apiCall('/api/analytics/rewards'),
-    getWeeklyReport: () => apiCall('/api/analytics/weekly-report/latest'),
-  },
 };
 
 export default api;

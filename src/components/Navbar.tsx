@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Flame, Swords, LogOut, Bell, BarChart3, History, Zap, Trophy, User, KeyRound } from "lucide-react";
+import { Flame, Swords, LogOut, Bell, History, Zap, Trophy, User, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -92,13 +92,6 @@ const Navbar = () => {
             >
               <History className="h-4 w-4" />
               History
-            </Link>
-            <Link
-              to="/analytics"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Analytics
             </Link>
             <Link
               to="/leaderboard"
