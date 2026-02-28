@@ -1,19 +1,37 @@
-// Cognito Integration Service - Connects AWS Cognito with Backend
-import cognitoAuthService from './cognitoAuthNoVerify';
-import { AuthTokens, SignUpData } from './cognitoAuthNoVerify';
+// Integration Service - Connects Local Auth with Backend
+// Uses local auth for development
+import localAuthService from './localAuth';
 
-const BACKEND_URL = 'http://localhost:3001';
+// Set to true for local development without AWS
+const USE_LOCAL_AUTH = true;
+const authService = localAuthService;
+
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+
+export interface AuthTokens {
+  accessToken: string;
+  idToken: string;
+  refreshToken: string;
+}
+
+export interface SignUpData {
+  email: string;
+  password: string;
+  name: string;
+  phoneNumber?: string;
+  college?: string;
+}
 
 // ============================================
 // SIGN UP - Register with Cognito and Backend
 // ============================================
 export const signUp = async (data: SignUpData): Promise<{ user: any; token: string }> => {
   try {
-    // Step 1: Register with AWS Cognito
-    const cognitoResult = await cognitoAuthService.signUp(data);
+    // Step 1: Register with auth service (Cognito or Local)
+    const authResult = await authService.signUp(data);
     
     // Step 2: Sign in to get tokens
-    const tokens = await cognitoAuthService.signIn(data.email, data.password);
+    const tokens = await authService.signIn(data.email, data.password);
     
     // Step 3: Store tokens
     localStorage.setItem('accessToken', tokens.accessToken);
@@ -28,10 +46,11 @@ export const signUp = async (data: SignUpData): Promise<{ user: any; token: stri
         'Authorization': `Bearer ${tokens.idToken}`,
       },
       body: JSON.stringify({
-        cognitoSub: cognitoResult.userSub,
+        cognitoSub: authResult.userSub,
         email: data.email,
         name: data.name,
         phoneNumber: data.phoneNumber,
+        college: data.college,
       }),
     });
     
@@ -56,16 +75,16 @@ export const signUp = async (data: SignUpData): Promise<{ user: any; token: stri
 // ============================================
 export const signIn = async (email: string, password: string): Promise<{ user: any; token: string }> => {
   try {
-    // Step 1: Sign in with AWS Cognito
-    const tokens = await cognitoAuthService.signIn(email, password);
+    // Step 1: Sign in with auth service (Cognito or Local)
+    const tokens = await authService.signIn(email, password);
     
     // Step 2: Store tokens
     localStorage.setItem('accessToken', tokens.accessToken);
     localStorage.setItem('idToken', tokens.idToken);
     localStorage.setItem('refreshToken', tokens.refreshToken);
     
-    // Step 3: Get Cognito user info
-    const cognitoUser = await cognitoAuthService.getCurrentUser();
+    // Step 3: Get user info from auth service
+    const authUser = await authService.getCurrentUser();
     
     // Step 4: Try to get user data from backend
     let backendResponse = await fetch(`${BACKEND_URL}/api/users/me`, {
@@ -84,10 +103,10 @@ export const signIn = async (email: string, password: string): Promise<{ user: a
             'Authorization': `Bearer ${tokens.idToken}`,
           },
           body: JSON.stringify({
-            cognitoSub: cognitoUser.sub,
-            email: cognitoUser.email,
-            name: cognitoUser.name || email.split('@')[0],
-            phoneNumber: cognitoUser.phone_number,
+            cognitoSub: authUser.sub,
+            email: authUser.email,
+            name: authUser.name || email.split('@')[0],
+            phoneNumber: authUser.phone_number,
           }),
         });
         
@@ -121,7 +140,7 @@ export const signIn = async (email: string, password: string): Promise<{ user: a
 // SIGN OUT
 // ============================================
 export const signOut = (): void => {
-  cognitoAuthService.signOut();
+  authService.signOut();
 };
 
 // ============================================
@@ -155,9 +174,9 @@ export const getCurrentUser = async (): Promise<any> => {
 // ============================================
 export const isAuthenticated = async (): Promise<boolean> => {
   try {
-    const cognitoAuth = await cognitoAuthService.isAuthenticated();
+    const authCheck = await authService.isAuthenticated();
     const token = localStorage.getItem('idToken');
-    return cognitoAuth && !!token;
+    return authCheck && !!token;
   } catch (error) {
     return false;
   }
@@ -178,7 +197,7 @@ export const getAccessToken = async (): Promise<string> => {
 // REFRESH SESSION
 // ============================================
 export const refreshSession = async (): Promise<AuthTokens> => {
-  const tokens = await cognitoAuthService.refreshSession();
+  const tokens = await authService.refreshSession();
   localStorage.setItem('accessToken', tokens.accessToken);
   localStorage.setItem('idToken', tokens.idToken);
   localStorage.setItem('refreshToken', tokens.refreshToken);
@@ -189,7 +208,7 @@ export const refreshSession = async (): Promise<AuthTokens> => {
 // CHANGE PASSWORD
 // ============================================
 export const changePassword = async (oldPassword: string, newPassword: string): Promise<string> => {
-  return await cognitoAuthService.changePassword(oldPassword, newPassword);
+  return await authService.changePassword(oldPassword, newPassword);
 };
 
 export default {
