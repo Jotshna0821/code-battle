@@ -2,7 +2,7 @@
 import cognitoAuthService from './cognitoAuthNoVerify';
 import { AuthTokens, SignUpData } from './cognitoAuthNoVerify';
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
 
 // ============================================
 // SIGN UP - Register with Cognito and Backend
