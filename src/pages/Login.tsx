@@ -115,16 +115,6 @@ const Login = () => {
                 </button>
               </div>
             </div>
-            <div className="flex items-center justify-end">
-              <Button
-                type="button"
-                variant="link"
-                className="p-0 h-auto text-sm"
-                onClick={() => navigate('/forgot-password')}
-              >
-                Forgot Password?
-              </Button>
-            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>

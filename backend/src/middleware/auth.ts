@@ -17,93 +17,89 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(401).json({ error: 'No token provided' });
     }
 
+    console.log('🔍 Received token, length:', token.length);
+
     // Try to decode the token
-    const decoded = jwt.decode(token) as any;
+    let decoded;
+    try {
+      decoded = jwt.decode(token) as any;
+      console.log('✅ Token decoded successfully:', decoded ? 'Yes' : 'No');
+    } catch (decodeError) {
+      console.error('❌ JWT decode error:', decodeError);
+      return res.status(401).json({ error: 'Invalid token format' });
+    }
     
     if (!decoded) {
+      console.error('❌ Failed to decode token - token is null or invalid');
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // Check if it's a Cognito token (has 'sub' and 'cognito:username')
-    if (decoded.sub && decoded['cognito:username']) {
-      console.log('🔐 Cognito token detected, sub:', decoded.sub);
+    console.log('🔍 Token payload:', { 
+      sub: decoded.sub, 
+      email: decoded.email,
+      hasUsername: !!decoded['cognito:username']
+    });
+
+    // Always use MOCK_MODE for local development
+    if (decoded.sub) {
+      console.log('🔐 Processing token with sub:', decoded.sub);
+      console.log('📊 MOCK_MODE:', MOCK_MODE);
+      console.log('📊 Mock users count:', mockUsers.size);
       
-      if (MOCK_MODE) {
-        // Mock mode - find user in memory
-        const user = mockUsers.get(decoded.sub);
-        if (!user) {
-          console.error('❌ User not found in mock database for cognito_sub:', decoded.sub);
-          return res.status(404).json({ error: 'User not found' });
-        }
-        req.userId = user.userId;
-        req.cognitoSub = user.cognitoSub;
-        console.log('✅ Mock mode auth successful, userId:', user.userId);
-        next();
-      } else {
-        // Real mode - get user from DynamoDB
-        try {
-          const user = await dynamodbUserService.getUserByCognitoSub(decoded.sub);
-
-          if (!user) {
-            console.error('❌ User not found for cognito_sub:', decoded.sub);
-            return res.status(404).json({ error: 'User not found' });
+      // Look for user by cognitoSub
+      let user = mockUsers.get(decoded.sub);
+      
+      if (!user) {
+        console.log('🔍 User not found by sub, checking all users...');
+        // Try to find by email as fallback
+        for (const [key, value] of mockUsers.entries()) {
+          if (value.email === decoded.email || value.cognitoSub === decoded.sub) {
+            user = value;
+            console.log('✅ Found user by email/cognitoSub:', key);
+            break;
           }
-
-          req.userId = user.userId;
-          req.cognitoSub = user.cognitoSub;
-          console.log('✅ Cognito auth successful, userId:', user.userId);
-          next();
-        } catch (dbError: any) {
-          // If DynamoDB fails, try mock mode as fallback
-          console.error('❌ DynamoDB error in auth, trying mock mode:', dbError.message);
-          let user = mockUsers.get(decoded.sub);
-          
-          // Auto-create user in mock mode if they don't exist
-          if (!user) {
-            console.log('🔄 Auto-creating user in mock mode...');
-            user = {
-              userId: `mock_${Date.now()}`,
-              cognitoSub: decoded.sub,
-              email: decoded.email || decoded['cognito:username'],
-              name: decoded.name || decoded['cognito:username'],
-              level: 'Bronze I',
-              xp: 0,
-              currentStreak: 0,
-              bestStreak: 0,
-              totalProblemsSolved: 0,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            mockUsers.set(decoded.sub, user);
-            mockUsers.set(user.email, user);
-            console.log('✅ Mock user auto-created, userId:', user.userId);
-          }
-          
-          req.userId = user.userId;
-          req.cognitoSub = user.cognitoSub;
-          console.log('✅ Mock mode auth successful (fallback), userId:', user.userId);
-          next();
         }
       }
-    } else if (decoded.userId) {
-      // Regular JWT token
-      console.log('🔐 Regular JWT token detected');
-      try {
-        const jwtDecoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-        req.userId = jwtDecoded.userId;
-        console.log('✅ JWT auth successful, userId:', jwtDecoded.userId);
-        next();
-      } catch (error) {
-        return res.status(401).json({ error: 'Invalid token' });
+      
+      if (!user) {
+        console.error('❌ User not found in mock database');
+        console.log('📋 Available users:', Array.from(mockUsers.keys()));
+        console.log('📋 Looking for sub:', decoded.sub);
+        
+        // Auto-create user if they don't exist
+        console.log('🔄 Auto-creating user in mock mode...');
+        user = {
+          userId: `mock_${Date.now()}`,
+          cognitoSub: decoded.sub,
+          email: decoded.email || decoded['cognito:username'],
+          name: decoded.name || decoded.email?.split('@')[0] || 'User',
+          level: 'Bronze I',
+          xp: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          totalProblemsSolved: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        mockUsers.set(decoded.sub, user);
+        mockUsers.set(user.email, user);
+        console.log('✅ Mock user auto-created, userId:', user.userId);
       }
+      
+      req.userId = user.userId;
+      req.cognitoSub = user.cognitoSub;
+      console.log('✅ Authentication successful, userId:', user.userId);
+      next();
     } else {
-      return res.status(401).json({ error: 'Invalid token format' });
+      console.error('❌ Token missing sub field');
+      return res.status(401).json({ error: 'Invalid token format - missing sub' });
     }
   } catch (error) {
     console.error('❌ Auth error:', error);
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'Authentication failed' });
   }
 };

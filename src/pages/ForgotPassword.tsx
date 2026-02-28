@@ -18,8 +18,6 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      // Note: Cognito password reset is not implemented in cognitoAuthNoVerify
-      // This is a placeholder for future implementation
       toast({
         title: 'Feature Not Available',
         description: 'Password reset functionality is not currently available. Please contact support for assistance.',

@@ -63,30 +63,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => reject(new Error('Auth check timeout')), 5000);
       });
 
-      // Verify with Cognito with timeout
+      // Verify authentication with timeout
       const authStatus = await Promise.race([
         cognitoIntegrationService.isAuthenticated(),
         timeoutPromise
       ]) as boolean;
       
-      setAuthenticated(authStatus);
+      if (!authStatus) {
+        // Clear invalid tokens
+        console.log('❌ Authentication failed, clearing tokens');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('idToken');
+        localStorage.removeItem('refreshToken');
+        setAuthenticated(false);
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+      
+      setAuthenticated(true);
 
-      if (authStatus) {
-        try {
-          const userData = await cognitoIntegrationService.getCurrentUser();
-          setUser({
-            email: userData.email,
-            name: userData.name,
-            sub: userData.userId,
-            phone_number: userData.phoneNumber,
-          });
-        } catch (userError) {
-          // Still authenticated but no user data
-        }
-      } else {
+      // Try to get user data
+      try {
+        const userData = await cognitoIntegrationService.getCurrentUser();
+        setUser({
+          email: userData.email,
+          name: userData.name,
+          sub: userData.userId,
+          phone_number: userData.phoneNumber,
+        });
+      } catch (userError) {
+        console.error('❌ Failed to get user data:', userError);
+        // Clear tokens if we can't get user data
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('idToken');
+        localStorage.removeItem('refreshToken');
+        setAuthenticated(false);
         setUser(null);
       }
     } catch (error) {
+      console.error('❌ Auth check error:', error);
       // Clear tokens if auth check fails
       localStorage.removeItem('accessToken');
       localStorage.removeItem('idToken');

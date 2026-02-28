@@ -10,26 +10,41 @@ router.get('/me', authenticate, async (req, res) => {
   try {
     console.log('📊 Fetching user profile for userId:', req.userId);
     
-    if (MOCK_MODE) {
-      // Find user in mock database
-      const user = Array.from(mockUsers.values()).find(u => u.userId === req.userId);
-      if (!user) {
-        console.error('❌ User not found in mock database:', req.userId);
-        return res.status(404).json({ error: 'User not found' });
-      }
+    // Try mock mode first
+    const mockUser = Array.from(mockUsers.values()).find(u => u.userId === req.userId);
+    if (mockUser) {
       console.log('✅ Mock user profile fetched successfully');
-      return res.json(user);
+      return res.json(mockUser);
     }
     
-    const user = await dynamodbUserService.getUserById(req.userId!);
-    
-    if (!user) {
-      console.error('❌ User not found:', req.userId);
+    if (MOCK_MODE) {
+      console.error('❌ User not found in mock database:', req.userId);
       return res.status(404).json({ error: 'User not found' });
     }
     
-    console.log('✅ User profile fetched successfully');
-    res.json(user);
+    // Try DynamoDB
+    try {
+      const user = await dynamodbUserService.getUserById(req.userId!);
+      
+      if (!user) {
+        console.error('❌ User not found:', req.userId);
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      console.log('✅ User profile fetched successfully');
+      res.json(user);
+    } catch (dbError: any) {
+      console.error('❌ DynamoDB error, checking mock mode:', dbError.message);
+      
+      // Fallback to mock mode
+      const fallbackUser = Array.from(mockUsers.values()).find(u => u.userId === req.userId);
+      if (fallbackUser) {
+        console.log('✅ Mock user profile fetched (fallback)');
+        return res.json(fallbackUser);
+      }
+      
+      throw dbError;
+    }
   } catch (error: any) {
     console.error('❌ Error fetching user:', error.message);
     res.status(500).json({ error: 'Failed to fetch user' });
